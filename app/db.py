@@ -1,20 +1,43 @@
-from app import app
-from flask_mysqldb import MySQL
-from dotenv import load_dotenv
 import os
+import pymysql
 
-load_dotenv()  # take environment variables from .env.
+pymysql.install_as_MySQLdb()
 
-# Mysql Settings
-app.config['MYSQL_USER'] = os.getenv('MYSQL_USER')
-app.config['MYSQL_PASSWORD'] = os.getenv('MYSQL_PASSWORD')
-app.config['MYSQL_HOST'] = os.getenv('MYSQL_HOST')
-app.config['MYSQL_DB'] = os.getenv('MYSQL_DB')
-app.config['MYSQL_PORT'] = int(os.getenv('MYSQL_PORT', 3306))
-app.config['MYSQL_CURSORCLASS'] = 'DictCursor'
+class MySQLConnectionWrapper:
+    def __init__(self):
+        self.conn = pymysql.connect(
+            host=os.getenv('MYSQL_HOST', 'mysql_db'),
+            user=os.getenv('MYSQL_USER', 'root'),
+            password=os.getenv('MYSQL_PASSWORD', 'rootpassword'),
+            database=os.getenv('MYSQL_DB', 'flaskcontacts'),
+            cursorclass=pymysql.cursors.DictCursor
+        )
 
+    def cursor(self):
+        try:
+            if not self.conn.open:
+                self.conn.ping(reconnect=True)
+        except Exception:
+            self.conn = pymysql.connect(
+                host=os.getenv('MYSQL_HOST', 'mysql_db'),
+                user=os.getenv('MYSQL_USER', 'root'),
+                password=os.getenv('MYSQL_PASSWORD', 'rootpassword'),
+                database=os.getenv('MYSQL_DB', 'flaskcontacts'),
+                cursorclass=pymysql.cursors.DictCursor
+            )
+        return self.conn.cursor()
 
+    def commit(self):
+        self.conn.commit()
 
+class MySQL:
+    def __init__(self):
+        self._connection = None
 
-# MySQL Connection
-mysql = MySQL(app)
+    @property
+    def connection(self):
+        if self._connection is None:
+            self._connection = MySQLConnectionWrapper()
+        return self._connection
+
+mysql = MySQL()
